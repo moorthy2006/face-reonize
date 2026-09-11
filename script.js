@@ -1,9 +1,31 @@
-const MODEL_URL="https://justadudewhohacks.github.io/face-api.js/models";
+const MODEL_URLS=["https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights","https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights"];
 const imageInput=document.getElementById("imageInput"),dropZone=document.getElementById("dropZone"),imageWrapper=document.getElementById("imageWrapper"),imageStatus=document.getElementById("imageStatus"),personName=document.getElementById("personName"),resultsContainer=document.getElementById("resultsContainer"),totalFaces=document.getElementById("totalFaces"),analysisStatus=document.getElementById("analysisStatus"),loadingOverlay=document.getElementById("loadingOverlay"),loadingText=document.getElementById("loadingText"),video=document.getElementById("video"),videoCanvas=document.getElementById("videoCanvas"),cameraPlaceholder=document.getElementById("cameraPlaceholder"),cameraButton=document.getElementById("cameraButton");
 let modelsLoaded=false,stream=null,cameraRunning=false,detectionLoop=null,processingCamera=false;
 const reactionData={happy:{label:"Happy",icon:"😊"},sad:{label:"Sad",icon:"😢"},angry:{label:"Angry",icon:"😠"},surprised:{label:"Surprised",icon:"😮"},fearful:{label:"Fearful",icon:"😨"},disgusted:{label:"Disgusted",icon:"🤢"},neutral:{label:"Neutral",icon:"😐"}};
 
-async function loadModels(){if(modelsLoaded)return;showLoading("Loading AI models...");try{await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);await faceapi.nets.ageGenderNet.loadFromUri(MODEL_URL);await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);modelsLoaded=true}catch(error){console.error(error);alert("AI models could not be loaded. Check your internet connection and try again.");throw error}finally{hideLoading()}}
+async function loadModels(){
+ if(modelsLoaded)return;
+ showLoading("Loading AI models...");
+ let lastError=null;
+ for(const MODEL_URL of MODEL_URLS){
+  try{
+   await Promise.all([
+    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+    faceapi.nets.ageGenderNet.loadFromUri(MODEL_URL),
+    faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
+   ]);
+   modelsLoaded=true;
+   hideLoading();
+   return;
+  }catch(error){
+   console.warn("Model server failed:",MODEL_URL,error);
+   lastError=error;
+  }
+ }
+ hideLoading();
+ throw new Error("AI model loading failed. Open the site using Live Server/localhost and allow internet access for the first model download.");
+}
 window.addEventListener("load",async()=>{try{await loadModels()}catch(e){console.error(e)}});
 
 imageInput.addEventListener("change",async function(){if(this.files[0])await processImageFile(this.files[0])});
@@ -34,3 +56,4 @@ function hideLoading(){loadingOverlay.classList.remove("show")}
 function showError(message){imageStatus.textContent="Error";imageStatus.className="status error";alert(message)}
 function scrollToUpload(){document.getElementById("upload").scrollIntoView({behavior:"smooth"})}
 window.addEventListener("beforeunload",()=>{if(stream)stream.getTracks().forEach(t=>t.stop())});
+
